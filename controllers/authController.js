@@ -11,10 +11,9 @@ import cookie from "cookie";
 
 const baseCookieOptions = {
   httpOnly: true,
-  secure: true,  // Production mein hamesha true (Render HTTPS deta hai)
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",  // ← YEH BADLO!
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: "/",
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
 const sharedCookieOptions = {
