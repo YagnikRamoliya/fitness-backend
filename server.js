@@ -54,7 +54,7 @@ app.use(
         callback(new Error("Not allowed by CORS"));
       }
     },
-    // credentials: true hata diya — ab Bearer token use kar rahe hain
+    credentials: true 
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"], // Authorization zaroori hai Bearer token ke liye
   })
@@ -102,7 +102,7 @@ const io = new Server(server, {
       "https://fitness-frontend-lz1h.vercel.app",
     ],
     methods: ["GET", "POST"],
-    // credentials: true hata diya
+   credentials: true
   },
 });
 
