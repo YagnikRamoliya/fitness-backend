@@ -8,7 +8,7 @@ import { Server } from "socket.io";
 import connectDB from "./config/db.js";
 import bcrypt from "bcryptjs";
 import User from "./models/User.js";
-
+import cookieParser from "cookie-parser"; 
 // Import all routes ONCE
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
