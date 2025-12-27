@@ -1,4 +1,4 @@
-
+// middleware/protect.js (or wherever you have it)
 
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
@@ -8,21 +8,13 @@ export const protect = async (req, res, next) => {
     let token = null;
     let tokenSource = "none";
 
-    const isAdminRoute =
-      req.originalUrl.startsWith("/api/admin") ||
-      req.originalUrl.startsWith("/api/schedule/admin") ||  
-      req.originalUrl.startsWith("/api/schedule") && req.method === "POST" ||
-      req.baseUrl?.includes("/admin");
-
-    token = req.cookies?.admin_token || req.cookies?.user_token;
-    if (req.cookies?.admin_token) tokenSource = "admin_token";
-    else if (req.cookies?.user_token) tokenSource = "user_token";
-
-    if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+    // Sirf Bearer header se token lo (cookies completely ignored)
+    if (req.headers.authorization?.startsWith("Bearer ")) {
       token = req.headers.authorization.split(" ")[1];
       tokenSource = "Bearer header";
     }
 
+    // Agar token nahi mila
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -30,8 +22,10 @@ export const protect = async (req, res, next) => {
       });
     }
 
+    // JWT verify karo
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    // User find karo
     const user = await User.findById(decoded.id)
       .select("-password -__v")
       .lean();
@@ -43,6 +37,7 @@ export const protect = async (req, res, next) => {
       });
     }
 
+    // req.user set kar do
     req.user = {
       id: user._id.toString(),
       _id: user._id,
@@ -57,6 +52,7 @@ export const protect = async (req, res, next) => {
 
     next();
   } catch (err) {
+    console.error("Token verification failed:", err.message);
     return res.status(401).json({
       success: false,
       message: "Invalid or expired token",
@@ -64,6 +60,7 @@ export const protect = async (req, res, next) => {
   }
 };
 
+// Admin-only routes ke liye (unchanged — perfect hai)
 export const adminprotect = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user || !allowedRoles.includes(req.user.role)) {
