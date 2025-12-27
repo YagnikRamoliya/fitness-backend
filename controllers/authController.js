@@ -63,14 +63,14 @@ export const signup = async (req, res) => {
       role: "user",
     });
 
-    const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role || "user",
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+const token = jwt.sign(
+  {
+    id: newUser._id,  // Fixed: was user._id (undefined)
+    role: newUser.role || "user",
+  },
+  process.env.JWT_SECRET,
+  { expiresIn: "7d" }
+);
 
     res.setHeader("Set-Cookie", [
       cookie.serialize("user_token", token, userCookieOptions),
