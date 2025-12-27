@@ -14,17 +14,9 @@ export const protect = async (req, res, next) => {
       req.originalUrl.startsWith("/api/schedule") && req.method === "POST" ||
       req.baseUrl?.includes("/admin");
 
-    if (isAdminRoute) {
-      if (req.cookies?.admin_token) {
-        token = req.cookies.admin_token;
-        tokenSource = "admin_token";
-      }
-    } else {
-      if (req.cookies?.user_token) {
-        token = req.cookies.user_token;
-        tokenSource = "user_token";
-      }
-    }
+    token = req.cookies?.admin_token || req.cookies?.user_token;
+    if (req.cookies?.admin_token) tokenSource = "admin_token";
+    else if (req.cookies?.user_token) tokenSource = "user_token";
 
     if (!token && req.headers.authorization?.startsWith("Bearer ")) {
       token = req.headers.authorization.split(" ")[1];
