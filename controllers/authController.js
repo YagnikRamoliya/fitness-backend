@@ -1,40 +1,8 @@
-// controllers/authController.js → FULLY FIXED & PERFECT VERSION (December 22, 2025)
+// controllers/authController.js → FULLY TOKEN-BASED AUTH (NO COOKIES) – FINAL VERSION (December 27, 2025)
 
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import cookie from "cookie";
-
-// ========================
-// COOKIE OPTIONS
-// ========================
-
-const baseCookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: "/",
-};
-const sharedCookieOptions = {
-  ...baseCookieOptions,
-  path: "/",
-};
-
-const userCookieOptions = sharedCookieOptions;
-const adminCookieOptions = sharedCookieOptions;
-
-const clearUserCookie = {
-  ...sharedCookieOptions,
-  expires: new Date(0),
-  maxAge: 0,
-};
-
-const clearAdminCookie = {
-  ...sharedCookieOptions,
-  expires: new Date(0),
-  maxAge: 0,
-};
 
 // ---------------- Signup ----------------
 export const signup = async (req, res) => {
@@ -46,8 +14,9 @@ export const signup = async (req, res) => {
     }
 
     const userExists = await User.findOne({ email: email.toLowerCase() });
-    if (userExists)
+    if (userExists) {
       return res.status(400).json({ message: "Email already registered" });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -62,21 +31,16 @@ export const signup = async (req, res) => {
       role: "user",
     });
 
-const token = jwt.sign(
-  {
-    id: newUser._id,  // Fixed: was user._id (undefined)
-    role: newUser.role || "user",
-  },
-  process.env.JWT_SECRET,
-  { expiresIn: "7d" }
-);
-
-    res.setHeader("Set-Cookie", [
-      cookie.serialize("user_token", token, userCookieOptions),
-    ]);
+    const token = jwt.sign(
+      { id: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     return res.status(201).json({
+      loggedIn: true,
       message: "Account created successfully!",
+      token,
       user: {
         id: newUser._id,
         name: newUser.name,
@@ -95,10 +59,10 @@ const token = jwt.sign(
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password)
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -113,10 +77,6 @@ export const login = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.setHeader("Set-Cookie", [
-      cookie.serialize("user_token", token, userCookieOptions),
-    ]);
-
     const joined = user.joined
       ? new Date(user.joined).toLocaleDateString("en-US", {
           year: "numeric",
@@ -124,9 +84,10 @@ export const login = async (req, res) => {
         })
       : "Jan 2024";
 
-    res.json({
+    return res.json({
       loggedIn: true,
       message: "Login successful!",
+      token,
       user: {
         id: user._id,
         name: user.name,
@@ -150,10 +111,10 @@ export const login = async (req, res) => {
 export const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password)
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
 
     const admin = await User.findOne({
       email: email.toLowerCase(),
@@ -172,10 +133,6 @@ export const adminLogin = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.setHeader("Set-Cookie", [
-      cookie.serialize("admin_token", token, adminCookieOptions),
-    ]);
-
     const joined = admin.joined
       ? new Date(admin.joined).toLocaleDateString("en-US", {
           year: "numeric",
@@ -183,9 +140,10 @@ export const adminLogin = async (req, res) => {
         })
       : "Jan 2024";
 
-    res.json({
+    return res.json({
       loggedIn: true,
       message: "Admin login successful",
+      token,
       user: {
         id: admin._id,
         name: admin.name,
@@ -201,22 +159,12 @@ export const adminLogin = async (req, res) => {
   }
 };
 
-// ---------------- Unified Logout (User + Admin) ----------------
+// ---------------- Logout (Client-side token removal) ----------------
 export const logout = async (req, res) => {
-  try {
-    res.setHeader("Set-Cookie", [
-      cookie.serialize("user_token", "", clearUserCookie),
-      cookie.serialize("admin_token", "", clearAdminCookie),
-    ]);
-
-    return res.json({
-      success: true,
-      message: "Logged out successfully from all sessions",
-    });
-  } catch (err) {
-    console.error("Logout Error:", err);
-    return res.status(500).json({ message: "Server error" });
-  }
+  return res.json({
+    success: true,
+    message: "Logged out successfully (token removed from client)",
+  });
 };
 
 // ---------------- Me (Current Authenticated User) ----------------
@@ -229,20 +177,15 @@ export const me = async (req, res) => {
         message: "Not authorized",
       });
     }
+
     const user = await User.findById(req.user.id)
       .select("-password -__v")
       .populate("assignedWorkouts")
       .populate("assignedChallenges")
       .populate("assignedClasses")
       .populate("assignedNutritionPlans")
-      .populate({
-        path: "nutritionProgress.planId",
-        select: "_id",
-      })
-      .populate({
-        path: "nutritionProgress.completedMeals.mealId",
-        select: "_id",
-      })
+      .populate({ path: "nutritionProgress.planId", select: "_id" })
+      .populate({ path: "nutritionProgress.completedMeals.mealId", select: "_id" })
       .lean();
 
     if (!user) {
@@ -260,7 +203,7 @@ export const me = async (req, res) => {
         })
       : "Jan 2024";
 
-    res.json({
+    return res.json({
       loggedIn: true,
       user: {
         id: user._id,
@@ -278,7 +221,6 @@ export const me = async (req, res) => {
         healthMetrics: user.healthMetrics || {},
         fitnessPreferences: user.fitnessPreferences || {},
         trainer: user.trainer || {},
-        role: user.role || "user",
         assigned: {
           programs: user.assignedWorkouts || [],
           classes: user.assignedClasses || [],
@@ -303,7 +245,8 @@ export const me = async (req, res) => {
     });
   }
 };
-// ---------------- GET USER PROGRAMS ----------------
+
+// ---------------- Get User Programs ----------------
 export const getUserPrograms = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).populate({
@@ -325,9 +268,7 @@ export const getUserPrograms = async (req, res) => {
       .map((ep) => ep.programId)
       .filter((p, index, self) => self.indexOf(p) === index);
 
-    console.log(
-      `✅ ${programs.length} programs loaded for user ${req.user.id}`
-    );
+    console.log(`✅ ${programs.length} programs loaded for user ${req.user.id}`);
 
     res.json({
       programs,
@@ -340,11 +281,10 @@ export const getUserPrograms = async (req, res) => {
   }
 };
 
-// ---------------- GET USER PROGRESS ----------------
+// ---------------- Get User Progress ----------------
 export const getUserProgress = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-
     res.json({
       completedExercises: user.completedExercises || [],
       enrolledPrograms: user.enrolledPrograms || [],
@@ -356,37 +296,30 @@ export const getUserProgress = async (req, res) => {
   }
 };
 
-// ---------------- SAVE USER PROGRESS ----------------
+// ---------------- Save User Progress ----------------
 export const saveUserProgress = async (req, res) => {
   try {
     const { programId, dayIndex, exerciseId } = req.body;
-
     const user = await User.findById(req.user.id);
 
-    if (!user.completedExercises) {
-      user.completedExercises = [];
-    }
+    if (!user.completedExercises) user.completedExercises = [];
 
     const exerciseIdStr = exerciseId.toString();
     if (!user.completedExercises.includes(exerciseIdStr)) {
       user.completedExercises.push(exerciseIdStr);
 
-      // Update enrolled program progress
       const enrolledProgram = user.enrolledPrograms.find(
         (ep) => ep.programId.toString() === programId
       );
 
       if (enrolledProgram) {
-        enrolledProgram.progress = enrolledProgram.progress || 0;
-        enrolledProgram.progress += 1;
+        enrolledProgram.progress = (enrolledProgram.progress || 0) + 1;
         enrolledProgram.lastCompleted = new Date();
       }
 
       await user.save();
 
-      console.log(
-        `✅ Progress saved: Exercise ${exerciseIdStr} for program ${programId}`
-      );
+      console.log(`✅ Progress saved: Exercise ${exerciseIdStr} for program ${programId}`);
       res.json({
         message: "Progress saved successfully!",
         totalCompleted: user.completedExercises.length,
@@ -401,28 +334,13 @@ export const saveUserProgress = async (req, res) => {
 };
 
 // ---------------- Update Profile ----------------
+// Note: Use protect middleware on route — no manual token check needed
 export const updateProfile = async (req, res) => {
   try {
-    const token =
-      req.cookies?.user_token || req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "Not authenticated" });
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const fields = [
-      "name",
-      "email",
-      "phone",
-      "gender",
-      "dob",
-      "address",
-      "healthMetrics",
-      "fitnessPreferences",
-      "trainer",
-    ];
-
+    const fields = ["name", "email", "phone", "gender", "dob", "address", "healthMetrics", "fitnessPreferences", "trainer"];
     fields.forEach((field) => {
       if (req.body[field] !== undefined) user[field] = req.body[field];
     });
@@ -432,10 +350,7 @@ export const updateProfile = async (req, res) => {
     await user.save();
 
     const joined = user.joined
-      ? new Date(user.joined).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "short",
-        })
+      ? new Date(user.joined).toLocaleDateString("en-US", { year: "numeric", month: "short" })
       : "Jan 2024";
 
     res.json({
@@ -451,20 +366,16 @@ export const updateProfile = async (req, res) => {
 // ---------------- Change Password ----------------
 export const updatePassword = async (req, res) => {
   try {
-    const token =
-      req.cookies?.user_token || req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "Not authenticated" });
-
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword)
+    if (!currentPassword || !newPassword) {
       return res.status(400).json({ message: "Both passwords are required" });
+    }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-
+    const user = await User.findById(req.user.id);
     const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch)
+    if (!isMatch) {
       return res.status(400).json({ message: "Current password is incorrect" });
+    }
 
     user.password = await bcrypt.hash(newPassword, 12);
     await user.save();
@@ -479,13 +390,7 @@ export const updatePassword = async (req, res) => {
 // ---------------- Update Preferences ----------------
 export const updatePreferences = async (req, res) => {
   try {
-    const token =
-      req.cookies?.user_token || req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "Not authenticated" });
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-
+    const user = await User.findById(req.user.id);
     const { emailNotifications, smsNotifications, accountAlerts } = req.body;
 
     user.emailNotifications = emailNotifications ?? user.emailNotifications;
@@ -514,7 +419,6 @@ export const updatePreferences = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const { page = 1, limit = 10, search = "", status = "all" } = req.query;
-
     const filter = {};
 
     if (search) {
@@ -526,7 +430,6 @@ export const getAllUsers = async (req, res) => {
     }
 
     const today = new Date();
-
     if (status !== "all") {
       if (status === "active") filter["membership.expiresAt"] = { $gte: today };
       if (status === "expired") filter["membership.expiresAt"] = { $lt: today };
@@ -536,11 +439,7 @@ export const getAllUsers = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [users, total] = await Promise.all([
-      User.find(filter)
-        .select("-password")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
+      User.find(filter).select("-password").sort({ createdAt: -1 }).skip(skip).limit(limit),
       User.countDocuments(filter),
     ]);
 
@@ -557,12 +456,7 @@ export const getAllUsers = async (req, res) => {
         : "Pending",
       plan: u.membership?.plan || "No Plan",
       programsCount: u.enrolledPrograms?.length || 0,
-      avatar:
-        u.avatar ||
-        u.name
-          .split(" ")
-          .map((n) => n[0])
-          .join(""),
+      avatar: u.avatar || u.name.split(" ").map((n) => n[0]).join(""),
     }));
 
     res.json({
@@ -584,10 +478,8 @@ export const getUserById = async (req, res) => {
     const user = await User.findById(req.params.id)
       .select("-password")
       .populate("enrolledPrograms.programId");
-    if (!user)
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const today = new Date();
 
@@ -604,11 +496,10 @@ export const getUserById = async (req, res) => {
         : "Pending",
       plan: user.membership?.plan || "No Plan",
       programsCount: user.enrolledPrograms?.length || 0,
-      programs:
-        user.enrolledPrograms?.map((ep) => ({
-          title: ep.programId?.title || ep.title,
-          progress: ep.progress || 0,
-        })) || [],
+      programs: user.enrolledPrograms?.map((ep) => ({
+        title: ep.programId?.title || ep.title,
+        progress: ep.progress || 0,
+      })) || [],
       avatar: user.avatar,
     };
 
@@ -623,10 +514,7 @@ export const getUserById = async (req, res) => {
 export const deleteUser = async (req, res) => {
   try {
     const deleted = await User.findByIdAndDelete(req.params.id);
-    if (!deleted)
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+    if (!deleted) return res.status(404).json({ success: false, message: "User not found" });
 
     res.json({ success: true, message: "User deleted successfully" });
   } catch (err) {
