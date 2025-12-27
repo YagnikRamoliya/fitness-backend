@@ -1,4 +1,4 @@
-// server.js (or index.js) → FINAL TOKEN-BASED VERSION (December 27, 2025)
+// server.js (or index.js)
 
 import express from "express";
 import dotenv from "dotenv";
@@ -9,7 +9,7 @@ import connectDB from "./config/db.js";
 import bcrypt from "bcryptjs";
 import User from "./models/User.js";
 
-// Import all routes
+// Import all routes ONCE
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import programRoutes from "./routes/programRoutes.js";
@@ -34,7 +34,7 @@ dotenv.config();
 
 const app = express();
 
-// CORS — credentials: false kyunki ab cookies nahi bhej rahe
+// ===== Express CORS =====
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -43,30 +43,28 @@ app.use(
       const allowedOrigins = [
         "http://localhost:5173",
         "http://localhost:5174",
-        "https://fitness-frontend-iota-plum.vercel.app",   // Customer App
-        "https://fitness-frontend-lz1h.vercel.app",        // Admin Panel
+        "https://fitness-frontend-iota-plum.vercel.app",
+        "https://fitness-frontend-lz1h.vercel.app",
       ];
 
       if (allowedOrigins.includes(origin)) {
-        callback(null, true);  // origin return nahi karna ab, sirf true
+        callback(null, origin);
       } else {
         console.log("🚫 CORS Blocked origin:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: false, 
+    credentials: false, // no cookies
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"], // Authorization zaroori hai Bearer token ke liye
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
+// ===== Body parsers =====
 app.use(express.json({ limit: "30mb", extended: true }));
 app.use(express.urlencoded({ limit: "30mb", extended: true }));
 
-// cookieParser() completely removed — ab cookies use nahi kar rahe
-// app.use(cookieParser());
-
-// Mount routes
+// ===== Routes =====
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/programs", programRoutes);
@@ -89,20 +87,30 @@ app.use("/api/admin/notifications", adminNotificationRoutes);
 
 app.get("/", (req, res) => res.send("API Running – Ready!"));
 
+// ===== Server & Socket.IO =====
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
-// Socket.IO setup — credentials: false (cookies nahi bhej rahe)
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://fitness-frontend-iota-plum.vercel.app",
-      "https://fitness-frontend-lz1h.vercel.app",
-    ],
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "https://fitness-frontend-iota-plum.vercel.app",
+        "https://fitness-frontend-lz1h.vercel.app",
+      ];
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, origin);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST"],
-   credentials: true
+    credentials: false, // no cookies
   },
 });
 
@@ -123,7 +131,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// Create default admin (unchanged)
+// ===== Default Admin =====
 const createDefaultAdmin = async () => {
   try {
     const adminEmail = "admin@gmail.com";
@@ -148,7 +156,9 @@ const createDefaultAdmin = async () => {
           canViewRevenue: true,
         },
       });
-      console.log("✅ Default Super Admin created: admin@gmail.com / Admin@123");
+      console.log(
+        "✅ Default Super Admin created: admin@gmail.com / Admin@123"
+      );
     } else {
       console.log("✅ Admin account already exists");
       if (existingAdmin.email === adminEmail && existingAdmin.role !== "admin") {
@@ -166,7 +176,7 @@ const createDefaultAdmin = async () => {
   }
 };
 
-// Start server
+// ===== Start Server =====
 const startServer = async () => {
   try {
     await connectDB();
@@ -175,7 +185,7 @@ const startServer = async () => {
     await createDefaultAdmin();
 
     server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`🔴 Socket.IO ready`);
     });
   } catch (err) {
