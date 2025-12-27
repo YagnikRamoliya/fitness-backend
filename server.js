@@ -35,15 +35,25 @@ dotenv.config();
 
 const app = express();
 
-// CORS setup
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://fitness-frontend-iota-plum.vercel.app",   
-      "https://fitness-frontend-lz1h.vercel.app"         
-    ],
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "https://fitness-frontend-iota-plum.vercel.app",   // Customer App
+        "https://fitness-frontend-lz1h.vercel.app",        // Admin Panel
+      ];
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, origin);  
+      } else {
+        console.log("🚫 CORS Blocked origin:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -60,7 +70,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/programs", programRoutes);
 app.use("/api/classes", classesRoutes);
-app.use("/api/auth/cart", cartRoutes); // note: this is under /api/auth/cart
+app.use("/api/auth/cart", cartRoutes); 
 app.use("/api/trainers", trainerRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/orders", orderRoutes);
@@ -84,15 +94,24 @@ const server = http.createServer(app);
 // Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://fitness-frontend-iota-plum.vercel.app",  // customer
-      "https://fitness-frontend-lz1h.vercel.app"        // admin
-    ],
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "https://fitness-frontend-iota-plum.vercel.app",   // Customer
+        "https://fitness-frontend-lz1h.vercel.app",        // Admin
+      ];
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, origin);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST"],
     credentials: true,
-    allowedHeaders: ["Content-Type"],
   },
 });
 
