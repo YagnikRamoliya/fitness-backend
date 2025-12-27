@@ -1,16 +1,15 @@
-// server.js (or index.js)
+// server.js (or index.js) → FINAL TOKEN-BASED VERSION (December 27, 2025)
 
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import cookieParser from "cookie-parser";
 import http from "http";
 import { Server } from "socket.io";
 import connectDB from "./config/db.js";
 import bcrypt from "bcryptjs";
 import User from "./models/User.js";
 
-// Import all routes ONCE
+// Import all routes
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import programRoutes from "./routes/programRoutes.js";
@@ -35,6 +34,7 @@ dotenv.config();
 
 const app = express();
 
+// CORS — credentials: false kyunki ab cookies nahi bhej rahe
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -48,39 +48,40 @@ app.use(
       ];
 
       if (allowedOrigins.includes(origin)) {
-        callback(null, origin);  
+        callback(null, true);  // origin return nahi karna ab, sirf true
       } else {
         console.log("🚫 CORS Blocked origin:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: true,
+    // credentials: true hata diya — ab Bearer token use kar rahe hain
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization"], // Authorization zaroori hai Bearer token ke liye
   })
 );
 
-
 app.use(express.json({ limit: "30mb", extended: true }));
 app.use(express.urlencoded({ limit: "30mb", extended: true }));
-app.use(cookieParser());
 
-// Mount routes correctly
+// cookieParser() completely removed — ab cookies use nahi kar rahe
+// app.use(cookieParser());
+
+// Mount routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/programs", programRoutes);
 app.use("/api/classes", classesRoutes);
-app.use("/api/auth/cart", cartRoutes); 
+app.use("/api/auth/cart", cartRoutes);
 app.use("/api/trainers", trainerRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/memberships", membershipRoutes);
 app.use("/api/challenges", challengeRoutes);
 app.use("/api/nutrition", nutritionRoutes);
-app.use("/api/admin/goals", goalRoutes);        
+app.use("/api/admin/goals", goalRoutes);
 app.use("/api/schedule", scheduleRoutes);
 app.use("/api/stats", statsRoutes);
-app.use("/api/admin/revenue", revenueRoutes);    
+app.use("/api/admin/revenue", revenueRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/settings", settingsRoutes);
@@ -91,30 +92,19 @@ app.get("/", (req, res) => res.send("API Running – Ready!"));
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
-// Socket.IO setup
+// Socket.IO setup — credentials: false (cookies nahi bhej rahe)
 const io = new Server(server, {
   cors: {
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-
-      const allowedOrigins = [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "https://fitness-frontend-iota-plum.vercel.app",   // Customer
-        "https://fitness-frontend-lz1h.vercel.app",        // Admin
-      ];
-
-      if (allowedOrigins.includes(origin)) {
-        callback(null, origin);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://fitness-frontend-iota-plum.vercel.app",
+      "https://fitness-frontend-lz1h.vercel.app",
+    ],
     methods: ["GET", "POST"],
-    credentials: true,
+    // credentials: true hata diya
   },
 });
-
 
 global.io = io;
 
@@ -133,7 +123,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// Create default admin
+// Create default admin (unchanged)
 const createDefaultAdmin = async () => {
   try {
     const adminEmail = "admin@gmail.com";
@@ -185,7 +175,7 @@ const startServer = async () => {
     await createDefaultAdmin();
 
     server.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🔴 Socket.IO ready`);
     });
   } catch (err) {
@@ -194,4 +184,4 @@ const startServer = async () => {
   }
 };
 
-startServer(); 
+startServer();
