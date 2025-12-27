@@ -54,7 +54,7 @@ app.use(
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: true 
+    credentials: false, 
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"], // Authorization zaroori hai Bearer token ke liye
   })
