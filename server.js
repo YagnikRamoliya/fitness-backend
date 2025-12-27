@@ -34,7 +34,6 @@ dotenv.config();
 
 const app = express();
 
-// ===== Express CORS =====
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -43,8 +42,8 @@ app.use(
       const allowedOrigins = [
         "http://localhost:5173",
         "http://localhost:5174",
-        "https://fitness-frontend-iota-plum.vercel.app",
-        "https://fitness-frontend-lz1h.vercel.app",
+        "https://fitness-frontend-iota-plum.vercel.app", // Customer App
+        "https://fitness-frontend-lz1h.vercel.app", // Admin Panel
       ];
 
       if (allowedOrigins.includes(origin)) {
@@ -54,17 +53,17 @@ app.use(
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: false, // no cookies
+    credentials: false,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// ===== Body parsers =====
 app.use(express.json({ limit: "30mb", extended: true }));
 app.use(express.urlencoded({ limit: "30mb", extended: true }));
+app.use(cookieParser());
 
-// ===== Routes =====
+// Mount routes correctly
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/programs", programRoutes);
@@ -87,10 +86,10 @@ app.use("/api/admin/notifications", adminNotificationRoutes);
 
 app.get("/", (req, res) => res.send("API Running – Ready!"));
 
-// ===== Server & Socket.IO =====
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
+// Socket.IO setup
 const io = new Server(server, {
   cors: {
     origin: function (origin, callback) {
@@ -99,8 +98,8 @@ const io = new Server(server, {
       const allowedOrigins = [
         "http://localhost:5173",
         "http://localhost:5174",
-        "https://fitness-frontend-iota-plum.vercel.app",
-        "https://fitness-frontend-lz1h.vercel.app",
+        "https://fitness-frontend-iota-plum.vercel.app", // Customer
+        "https://fitness-frontend-lz1h.vercel.app", // Admin
       ];
 
       if (allowedOrigins.includes(origin)) {
@@ -110,7 +109,7 @@ const io = new Server(server, {
       }
     },
     methods: ["GET", "POST"],
-    credentials: false, // no cookies
+    credentials: true,
   },
 });
 
@@ -131,7 +130,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// ===== Default Admin =====
+// Create default admin
 const createDefaultAdmin = async () => {
   try {
     const adminEmail = "admin@gmail.com";
@@ -161,7 +160,10 @@ const createDefaultAdmin = async () => {
       );
     } else {
       console.log("✅ Admin account already exists");
-      if (existingAdmin.email === adminEmail && existingAdmin.role !== "admin") {
+      if (
+        existingAdmin.email === adminEmail &&
+        existingAdmin.role !== "admin"
+      ) {
         existingAdmin.role = "admin";
         await existingAdmin.save();
         console.log("🔧 Fixed role for default admin");
@@ -176,7 +178,7 @@ const createDefaultAdmin = async () => {
   }
 };
 
-// ===== Start Server =====
+// Start server
 const startServer = async () => {
   try {
     await connectDB();
