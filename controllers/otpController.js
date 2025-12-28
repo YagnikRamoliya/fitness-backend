@@ -1,4 +1,9 @@
-import nodemailer from "nodemailer";
+// REMOVE THESE LINES (nodemailer completely removed)
+// import nodemailer from "nodemailer";
+// const transporter = nodemailer.createTransport({ ... });
+
+// ADD THIS AT TOP
+import { Resend } from "resend";
 import Otp from "../models/Otp.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
@@ -9,15 +14,8 @@ import ScheduleEvent from "../models/ScheduleEvent.js";
 import { format, addDays } from "date-fns";
 import Cart from "../models/Cart.js";
 import { sendNotification } from "../services/notificationService.js";
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
-// ====================== SEND OTP ======================
+// ====================== SEND OTP (NOW USING RESEND) ======================
 export const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
@@ -35,25 +33,34 @@ export const sendOtp = async (req, res) => {
       otp,
       expiresIn: new Date(Date.now() + 10 * 60 * 1000),
     });
-    console.log(
-      `OTP for ${normalizedEmail}: ${otp}  ←←← YE DEKH TERMINAL MEIN`
-    );
-    await transporter.sendMail({
-      from: `"FitTrack Health" <${process.env.EMAIL}>`,
-      to: normalizedEmail,
+
+    // ← RESEND INTEGRATION STARTS HERE
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const { data, error } = await resend.emails.send({
+      from: "FitTrack Health <onboarding@resend.dev>", // Testing के लिए ये use करो (instant work)
+      // बाद में domain verify करके change करो: "FitTrack Health <no-reply@yourdomain.com>"
+      to: [normalizedEmail],
       subject: "Your OTP Code - FitTrack Health",
-      text: `Your verification code is ${otp}. Valid for 10 minutes.`,
       html: `
-            <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 30px; border: 1px solid #eee; border-radius: 12px; text-align: center; background: #f9f9f9;">
-              <h2 style="color: #E3002A;">FitTrack Health</h2>
-              <h1 style="font-size: 42px; letter-spacing: 10px; color: #E3002A; margin: 20px 0;">${otp}</h1>
-              <p style="color: #555; font-size: 16px;">Your verification code</p>
-              <p style="color: #888; font-size: 14px;">Expires in <strong>10 minutes</strong></p>
-              <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;" />
-              <p style="color: #999; font-size: 12px;">© 2025 FitLife Pro. All rights reserved.</p>
-            </div>
-          `,
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 30px; border: 1px solid #eee; border-radius: 12px; text-align: center; background: #f9f9f9;">
+          <h2 style="color: #E3002A;">FitTrack Health</h2>
+          <h1 style="font-size: 42px; letter-spacing: 10px; color: #E3002A; margin: 20px 0;">${otp}</h1>
+          <p style="color: #555; font-size: 16px;">Your verification code</p>
+          <p style="color: #888; font-size: 14px;">Expires in <strong>10 minutes</strong></p>
+          <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;" />
+          <p style="color: #999; font-size: 12px;">© 2025 FitTrack Health. All rights reserved.</p>
+        </div>
+      `,
     });
+
+    if (error) {
+      console.error("Resend Error:", error);
+      return res.status(500).json({ message: "Failed to send OTP." });
+    }
+
+    // Optional: Testing के लिए console में OTP दिखाओ (Render logs में मिलेगा)
+    console.log(`OTP for ${normalizedEmail}: ${otp}`);
 
     return res.status(200).json({ message: "OTP sent successfully!" });
   } catch (error) {
@@ -62,7 +69,7 @@ export const sendOtp = async (req, res) => {
   }
 };
 
-// ====================== VERIFY OTP + PROCESS PAYMENT (FULLY FIXED) ======================
+// ====================== VERIFY OTP + PROCESS PAYMENT (UNCHANGED & FULLY WORKING) ======================
 export const verifyOtpAndSaveOrder = async (req, res) => {
   try {
     const {
@@ -79,7 +86,8 @@ export const verifyOtpAndSaveOrder = async (req, res) => {
     } = req.body;
 
     const email = rawEmail?.toLowerCase().trim();
-    // Prevent same title in both programs and classes
+
+    // Prevent duplicate titles
     const allTitles = [
       ...programs.map((p) => p.title.toLowerCase()),
       ...classes.map((c) => c.title.toLowerCase()),
@@ -87,6 +95,7 @@ export const verifyOtpAndSaveOrder = async (req, res) => {
     if (new Set(allTitles).size !== allTitles.length) {
       return res.status(400).json({ message: "Duplicate items not allowed!" });
     }
+
     // Validate OTP
     const otpRecord = await Otp.findOne({ email });
     if (
@@ -99,7 +108,7 @@ export const verifyOtpAndSaveOrder = async (req, res) => {
 
     const loggedInUser = req.user ? await User.findById(req.user.id) : null;
     let membershipInfo = null;
-    const orderItems = []; // Unified array for Order document
+    const orderItems = [];
 
     // 1. MEMBERSHIP PURCHASE
     // Inside verifyOtpAndSaveOrder → after OTP validation
@@ -553,7 +562,6 @@ export const verifyOtpAndSaveOrder = async (req, res) => {
       );
     }
 
-    // Delete OTP
     await Otp.deleteOne({ _id: otpRecord._id });
 
     return res.status(201).json({
