@@ -35,7 +35,9 @@ export const sendOtp = async (req, res) => {
       otp,
       expiresIn: new Date(Date.now() + 10 * 60 * 1000),
     });
-
+    console.log(
+      `OTP for ${normalizedEmail}: ${otp}  ←←← YE DEKH TERMINAL MEIN`
+    );
     await transporter.sendMail({
       from: `"FitTrack Health" <${process.env.EMAIL}>`,
       to: normalizedEmail,
@@ -492,16 +494,16 @@ export const verifyOtpAndSaveOrder = async (req, res) => {
 
       let purchaseType = "";
       let purchaseTitle = "";
-      let notificationIcon = "activity"; 
+      let notificationIcon = "activity";
 
       if (membershipId) {
         purchaseType = "Membership";
         purchaseTitle = membershipInfo?.plan || "Plan";
-        notificationIcon = "membership"; 
+        notificationIcon = "membership";
       } else if (programs.length > 0) {
         purchaseType = "Program";
         purchaseTitle = programs[0].title || "Workout Program";
-        notificationIcon = "purchase"; 
+        notificationIcon = "purchase";
       } else if (classes.length > 0) {
         purchaseType = "Live Class";
         purchaseTitle = classes[0].title || "Fitness Class";
@@ -530,7 +532,7 @@ export const verifyOtpAndSaveOrder = async (req, res) => {
           notificationTitle,
           notificationMessage,
           "success",
-          notificationIcon 
+          notificationIcon
         );
       }
 
