@@ -49,8 +49,27 @@ router.get("/user", protect, getUserChallenges);
 router.get("/:id", getChallengeById);
 router.get("/:challengeId/progress", protect, getChallengeProgress);
 router.post("/progress", protect, saveChallengeProgress);
-router.post("/create", adminprotect, upload.any(), createChallenge);
-router.put("/:id", adminprotect, upload.any(), updateChallenge);
+router.post(
+  "/create",
+  adminprotect,
+  upload.fields([
+    { name: "thumbnail", maxCount: 1 },
+    { name: "data" }, // JSON data field को allow करता है
+    { name: /^step-\d+-\d+$/, maxCount: 100 }, // step-0-0, step-1-3 जैसे सभी fields accept करता है
+  ]),
+  createChallenge
+);
+
+router.put(
+  "/:id",
+  adminprotect,
+  upload.fields([
+    { name: "thumbnail", maxCount: 1 },
+    { name: "data" },
+    { name: /^step-\d+-\d+$/, maxCount: 100 },
+  ]),
+  updateChallenge
+);
 router.delete("/:id", adminprotect, deleteChallenge);
 
 router.patch("/:id/complete", protect, completeChallenge);
