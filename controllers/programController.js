@@ -137,6 +137,22 @@ export const createProgram = async (req, res) => {
     });
   } catch (err) {
     console.log("Create Program Error:", err);
+    if (err.name === "ValidationError") {
+    // Mongoose validation error के case में clear message भेजो
+    const errors = Object.values(err.errors).map(e => e.message);
+    console.error("Validation Errors:", errors);
+    return res.status(400).json({ 
+      message: "Validation failed", 
+      errors 
+    });
+  }
+  
+  // Any other error
+  console.error("Unexpected Error Details:", err.stack);
+  res.status(500).json({ 
+    message: "Server error", 
+    error: err.message 
+  });
     res.status(500).json({ message: err.message });
   }
 };
