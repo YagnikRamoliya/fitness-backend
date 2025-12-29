@@ -45,8 +45,29 @@ router.post("/:id/reset-day", protect, resetProgramDay);
 router.post("/:id/reset-program", protect, resetFullProgram);
 
 // ====================== ADMIN ROUTES ======================
-router.post("/",  uploadProgramThumbnail, createProgram);
-router.put("/:id",  uploadProgramThumbnail, updateProgram);
+router.post("/", (req, res, next) => {
+  uploadProgramThumbnail(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      // Multer-specific error (file too large, wrong format, etc.)
+      return res.status(400).json({ message: "File upload error", error: err.message });
+    } else if (err) {
+      // Other error (from fileFilter)
+      return res.status(400).json({ message: "Invalid file", error: err.message });
+    }
+    next(); // No error → go to controller
+  });
+}, createProgram);
+
+router.put("/:id", (req, res, next) => {
+  uploadProgramThumbnail(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ message: "File upload error", error: err.message });
+    } else if (err) {
+      return res.status(400).json({ message: "Invalid file", error: err.message });
+    }
+    next();
+  });
+}, updateProgram);
 router.delete("/:id",  deleteProgram);
 router.patch("/:id/status", updateProgramStatus);
 
