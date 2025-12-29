@@ -65,7 +65,7 @@ export const createProgram = async (req, res) => {
     const newProgram = new Program({
       id: programData.id || uuidv4(),
       title: programData.title,
-      desc: programData.description,
+      desc: programData.desc,
       thumbnail: mainThumbnail,
       duration: programData.duration,
       difficulty: programData.level,
@@ -173,7 +173,7 @@ export const updateProgram = async (req, res) => {
 
     Object.assign(program, {
       title: programData.title || program.title,
-      desc: programData.description || program.desc,
+      desc: programData.desc ?? program.desc,
       duration: programData.duration || program.duration,
       difficulty: programData.level || program.difficulty,
       trainingType: programData.trainingType || program.trainingType,
