@@ -153,7 +153,6 @@ export const createProgram = async (req, res) => {
     message: "Server error", 
     error: err.message 
   });
-    res.status(500).json({ message: err.message });
   }
 };
 
