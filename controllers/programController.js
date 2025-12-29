@@ -19,8 +19,8 @@ const groupFilesByFieldname = (files = []) => {
 const extractExerciseFiles = (filesObj) => {
   const exerciseFiles = {};
   for (const key in filesObj) {
-    if (key.startsWith("exercise-")) {
-      const id = key.replace("exercise-", "");
+    if (key.startsWith("exercise_")) {
+      const id = key.replace("exercise_", "");
       exerciseFiles[id] = filesObj[key][0].path;
     }
   }
@@ -30,7 +30,11 @@ const extractExerciseFiles = (filesObj) => {
 // ------------------------ CREATE PROGRAM ------------------------
 export const createProgram = async (req, res) => {
   try {
-    let programData = JSON.parse(req.body.program);
+if (!req.body.program) {
+  return res.status(400).json({ message: "Program data missing" });
+}
+
+let programData = JSON.parse(req.body.program);
     console.log("Received programData:", programData);
     console.log("Final data being saved:", {
       title: programData.title,
@@ -62,21 +66,25 @@ export const createProgram = async (req, res) => {
     }
 
     let days = Array.isArray(programData.days) ? programData.days : [];
-    days = days.map((day, index) => ({
-      day: index + 1,
-      title: day.title,
-      exercises: day.exercises.map((ex) => ({
-        id: ex.id,
-        title: ex.title,
-        type: ex.type,
-        time: ex.time,
-        reps: ex.reps,
-        sets: ex.sets,
-        thumbnail: exerciseFiles[ex.id] || ex.thumbnail || null,
-        description: ex.notes || "",
-        section: ex.section || "Workout",
-      })),
-    }));
+   days = days.map((day, dayIndex) => ({
+  day: dayIndex + 1,
+  title: day.title,
+  exercises: day.exercises.map((ex, exIndex) => {
+    const key = `${dayIndex}_${exIndex}`;
+    return {
+      id: ex.id || key,
+      title: ex.title,
+      type: ex.type,
+      time: ex.time,
+      reps: ex.reps,
+      sets: ex.sets,
+      thumbnail: exerciseFiles[key] || null,
+      description: ex.notes || "",
+      section: ex.section || "Workout",
+    };
+  }),
+}));
+
 
     const newProgram = new Program({
       id: programData.id || uuidv4(),
