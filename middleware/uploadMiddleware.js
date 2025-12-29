@@ -70,13 +70,12 @@ const nutritionStorage = new CloudinaryStorage({
 
 // =============== FILE FILTERS ===============
 const programFileFilter = (req, file, cb) => {
-  const allowedFields = ["thumbnail", "coverImage"];
-  const isExercise = file.fieldname.startsWith("exercise-");
-
+  const allowedFields = ["thumbnail"];
+  const isExercise = file.fieldname.startsWith("exercise_");  // ← underscore
   if (allowedFields.includes(file.fieldname) || isExercise) {
     cb(null, true);
   } else {
-    cb(new Error(`Unexpected field: ${file.fieldname}. Allowed: thumbnail, exercise-*`), false);
+    cb(new Error(`Unexpected field: ${file.fieldname}. Allowed: thumbnail, exercise_*`), false);
   }
 };
 
