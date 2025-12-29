@@ -31,6 +31,22 @@ const extractExerciseFiles = (filesObj) => {
 export const createProgram = async (req, res) => {
   try {
     let programData = JSON.parse(req.body.program);
+    console.log("Received programData:", programData);
+    console.log("Final data being saved:", {
+      title: programData.title,
+      desc: programData.desc,
+      duration: programData.duration,
+      difficulty: programData.level,
+      trainingType: programData.trainingType,
+      focus: programData.focus,
+      price: programData.price,
+      caloriesBurned: programData.caloriesBurned,
+      trainerName: programData.trainerName,
+      plans: programData.plans,
+      equipment: programData.equipment,
+      totalDays: programData.days?.length || 0,
+      daysSample: programData.days?.slice(0, 2), // sirf pehle 2 days ka sample dikhao
+    });
     const files = groupFilesByFieldname(req.files);
     const exerciseFiles = extractExerciseFiles(files);
     const mainThumbnail = files["thumbnail"]?.[0]?.path || null;
