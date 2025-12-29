@@ -21,7 +21,30 @@ const generatePublicId = (file) => {
   const originalName = file.originalname.split(".")[0].replace(/[^a-zA-Z0-9]/g, "");
   return `${originalName}-${timestamp}-${random}`;
 };
+// ------------------------ UTIL FUNCTIONS ------------------------
+const groupFilesByFieldname = (files = []) => {
+  const grouped = {};
+  files.forEach((file) => {
+    if (!grouped[file.fieldname]) grouped[file.fieldname] = [];
+    grouped[file.fieldname].push(file);
+  });
+  return grouped;
+};
 
+const extractExerciseFiles = (filesObj) => {
+  const exerciseFiles = {};
+  if (!filesObj) return exerciseFiles;
+
+  for (const key in filesObj) {
+    if (key.startsWith("exercise_")) {
+      const id = key.replace("exercise_", "");
+      if (filesObj[key] && filesObj[key].length > 0) {
+        exerciseFiles[id] = filesObj[key][0].path;
+      }
+    }
+  }
+  return exerciseFiles;
+};
 // ======================= PROGRAM STORAGE =======================
 const programStorage = new CloudinaryStorage({
   cloudinary,
